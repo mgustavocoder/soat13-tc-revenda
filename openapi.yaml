@@ -1,0 +1,457 @@
+openapi: 3.0.3
+info:
+  title: soat13-tc-revenda API
+  description: API REST para plataforma de revenda de veículos automotores
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Ambiente local
+
+tags:
+  - name: Health
+    description: Verificação de saúde da API
+  - name: Clientes
+    description: Gerenciamento de clientes
+  - name: Veículos
+    description: Gerenciamento de veículos
+  - name: Vendas
+    description: Compra de veículos
+
+paths:
+
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Verifica saúde da API
+      responses:
+        '200':
+          description: API operacional
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: 1.0.0
+
+  /api/clientes:
+    get:
+      tags: [Clientes]
+      summary: Lista todos os clientes
+      responses:
+        '200':
+          description: Lista de clientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cliente'
+
+    post:
+      tags: [Clientes]
+      summary: Cadastra um novo cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClienteInput'
+            example:
+              nome: Maria Silva
+              cpf: "12345678901"
+              email: maria@email.com
+      responses:
+        '201':
+          description: Cliente cadastrado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '400':
+          description: Dados inválidos (nome, CPF ou e-mail)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '409':
+          description: CPF ou e-mail já cadastrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+  /api/clientes/{cpf}:
+    get:
+      tags: [Clientes]
+      summary: Busca cliente pelo CPF
+      parameters:
+        - name: cpf
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{11}$'
+          example: "12345678901"
+      responses:
+        '200':
+          description: Cliente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '400':
+          description: CPF inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '404':
+          description: Cliente não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+  /api/veiculos:
+    post:
+      tags: [Veículos]
+      summary: Cadastra um veículo para venda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VeiculoInput'
+            example:
+              marca: Toyota
+              modelo: Corolla
+              ano: 2022
+              cor: Branco
+              preco: 85000
+      responses:
+        '201':
+          description: Veículo cadastrado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+  /api/veiculos/disponiveis:
+    get:
+      tags: [Veículos]
+      summary: Lista veículos disponíveis para venda, ordenados por preço crescente
+      responses:
+        '200':
+          description: Lista de veículos disponíveis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Veiculo'
+              example:
+                - id: 2
+                  marca: Honda
+                  modelo: Civic
+                  ano: 2021
+                  cor: Prata
+                  preco: 75000
+                  status: DISPONIVEL
+                - id: 1
+                  marca: Toyota
+                  modelo: Corolla
+                  ano: 2022
+                  cor: Branco
+                  preco: 85000
+                  status: DISPONIVEL
+
+  /api/veiculos/vendidos:
+    get:
+      tags: [Veículos]
+      summary: Lista veículos vendidos, ordenados por preço crescente
+      responses:
+        '200':
+          description: Lista de veículos vendidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Veiculo'
+
+  /api/veiculos/{id}:
+    get:
+      tags: [Veículos]
+      summary: Busca veículo por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Veículo encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+        '400':
+          description: ID inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '404':
+          description: Veículo não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+    put:
+      tags: [Veículos]
+      summary: Edita dados de um veículo disponível
+      description: |
+        Atualiza parcialmente os dados do veículo. Apenas veículos com status
+        `DISPONIVEL` podem ser editados. Informe pelo menos um campo.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VeiculoUpdateInput'
+            example:
+              preco: 80000
+              cor: Prata
+      responses:
+        '200':
+          description: Veículo atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+        '400':
+          description: Dados inválidos ou veículo já vendido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '404':
+          description: Veículo não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+  /api/vendas:
+    post:
+      tags: [Vendas]
+      summary: Realiza a compra de um veículo
+      description: |
+        O cliente identificado pelo CPF deve estar previamente cadastrado.
+        O veículo deve estar com status `DISPONIVEL`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendaInput'
+            example:
+              veiculoId: 1
+              clienteCpf: "12345678901"
+      responses:
+        '201':
+          description: Compra realizada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaResponse'
+        '400':
+          description: Dados inválidos ou campos obrigatórios ausentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '404':
+          description: Cliente ou veículo não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '422':
+          description: Veículo não disponível para venda (já vendido)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+
+components:
+  schemas:
+
+    ClienteInput:
+      type: object
+      required: [nome, cpf, email]
+      properties:
+        nome:
+          type: string
+          minLength: 3
+          example: Maria Silva
+        cpf:
+          type: string
+          pattern: '^\d{11}$'
+          description: 11 dígitos numéricos, sem pontuação
+          example: "12345678901"
+        email:
+          type: string
+          format: email
+          example: maria@email.com
+
+    Cliente:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+        - $ref: '#/components/schemas/ClienteInput'
+
+    VeiculoInput:
+      type: object
+      required: [marca, modelo, ano, cor, preco]
+      properties:
+        marca:
+          type: string
+          example: Toyota
+        modelo:
+          type: string
+          example: Corolla
+        ano:
+          type: integer
+          minimum: 1886
+          example: 2022
+        cor:
+          type: string
+          example: Branco
+        preco:
+          type: number
+          format: float
+          minimum: 0.01
+          example: 85000
+
+    VeiculoUpdateInput:
+      type: object
+      description: Pelo menos um campo deve ser informado
+      properties:
+        marca:
+          type: string
+          example: Toyota
+        modelo:
+          type: string
+          example: Corolla Cross
+        ano:
+          type: integer
+          minimum: 1886
+          example: 2023
+        cor:
+          type: string
+          example: Prata
+        preco:
+          type: number
+          format: float
+          minimum: 0.01
+          example: 80000
+
+    Veiculo:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+        - $ref: '#/components/schemas/VeiculoInput'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [DISPONIVEL, VENDIDO]
+              example: DISPONIVEL
+
+    VendaInput:
+      type: object
+      required: [veiculoId, clienteCpf]
+      properties:
+        veiculoId:
+          type: integer
+          example: 1
+        clienteCpf:
+          type: string
+          pattern: '^\d{11}$'
+          example: "12345678901"
+
+    VendaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        veiculoId:
+          type: integer
+          example: 1
+        clienteId:
+          type: integer
+          example: 1
+        clienteCpf:
+          type: string
+          example: "12345678901"
+        preco:
+          type: number
+          format: float
+          example: 85000
+        dataVenda:
+          type: string
+          format: date-time
+        veiculo:
+          $ref: '#/components/schemas/Veiculo'
+        cliente:
+          type: object
+          properties:
+            nome:
+              type: string
+              example: Maria Silva
+            cpf:
+              type: string
+              example: "12345678901"
+            email:
+              type: string
+              example: maria@email.com
+
+    Erro:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Mensagem descritiva do erro

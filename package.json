@@ -1,0 +1,38 @@
+{
+  "name": "soat13-tc-revenda",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Plataforma de revenda de veículos automotores",
+  "main": "src/infrastructure/api/server.js",
+  "engines": {
+    "node": "=22.0.0"
+  },
+  "scripts": {
+    "start": "node src/infrastructure/api/server.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e",
+    "test:live": "node tests/e2e/live-api-test.js",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "lint": "npx eslint .",
+    "lint-fix": "npx eslint --fix ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-xss-sanitizer": "^2.0.1",
+    "knex": "^3.1.0",
+    "mysql2": "^3.15.1",
+    "pino": "^9.11.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.37.0",
+    "@jest/globals": "^30.2.0",
+    "eslint": "^9.37.0",
+    "globals": "^16.4.0",
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
+  }
+}

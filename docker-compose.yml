@@ -1,0 +1,50 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: revenda-db
+    restart: always
+    environment:
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - ./script.sql:/docker-entrypoint-initdb.d/script.sql
+      - revenda_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - revenda-network
+
+  revenda-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: soat13-tc-revenda:latest
+    container_name: revenda-app
+    ports:
+      - "${PORT}:3000"
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=3306
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PORT}
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - revenda-network
+
+volumes:
+  revenda_mysql_data:
+
+networks:
+  revenda-network:
+    driver: bridge
