@@ -1,4 +1,5 @@
 import { VeiculoAdapter } from './adapters/veiculo-adapter.js'
+import { DuplicateResourceError } from '../../domain/errors/duplicate-resource-error.js'
 
 class VeiculosRepository {
   constructor(queryBuilder) {
@@ -19,38 +20,72 @@ class VeiculosRepository {
     return VeiculoAdapter.toVeiculos(rows)
   }
 
-  async getVeiculoById(id) {
-    const row = await this.queryBuilder('veiculos').where('id', id).first()
+  async getVeiculosReservados() {
+    const rows = await this.queryBuilder('veiculos')
+      .where('status', 'RESERVADO')
+      .orderBy('preco', 'asc')
+    return VeiculoAdapter.toVeiculos(rows)
+  }
+
+  async getVeiculoByPlaca(placa) {
+    const normalized = String(placa || '').trim().toUpperCase()
+    const row = await this.queryBuilder('veiculos').where('placa', normalized).first()
     if (!row) return undefined
     return VeiculoAdapter.toVeiculo(row)
   }
 
-  async createVeiculo(veiculo) {
-    const [id] = await this.queryBuilder('veiculos').insert({
-      marca: veiculo.marca,
-      modelo: veiculo.modelo,
-      ano: veiculo.ano,
-      cor: veiculo.cor,
-      preco: veiculo.preco,
-      status: 'DISPONIVEL'
-    })
-    return { id, ...veiculo, status: 'DISPONIVEL' }
+  async getVeiculoByIdentifier(identifier) {
+    if (identifier === undefined || identifier === null || identifier === '') return undefined
+    return this.getVeiculoByPlaca(identifier)
   }
 
-  async updateVeiculo(id, updates) {
+  async createVeiculo(veiculo) {
+    try {
+      const [id] = await this.queryBuilder('veiculos').insert({
+        marca: veiculo.marca,
+        modelo: veiculo.modelo,
+        ano: veiculo.ano,
+        cor: veiculo.cor,
+        placa: veiculo.placa,
+        preco: veiculo.preco,
+        status: 'DISPONIVEL'
+      })
+      return { id, ...veiculo, status: 'DISPONIVEL' }
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ER_DUP_ENTRY') {
+        throw new DuplicateResourceError('Veículo com essa placa já cadastrado.')
+      }
+      throw error
+    }
+  }
+
+  async updateVeiculo(placa, updates) {
     const fields = {}
     if (updates.marca !== undefined) fields.marca = updates.marca
     if (updates.modelo !== undefined) fields.modelo = updates.modelo
     if (updates.ano !== undefined) fields.ano = updates.ano
     if (updates.cor !== undefined) fields.cor = updates.cor
+    if (updates.placa !== undefined) fields.placa = String(updates.placa).trim().toUpperCase()
     if (updates.preco !== undefined) fields.preco = updates.preco
 
-    await this.queryBuilder('veiculos').where('id', id).update(fields)
-    return this.getVeiculoById(id)
+    const normalized = String(placa).trim().toUpperCase()
+    await this.queryBuilder('veiculos').where('placa', normalized).update(fields)
+    return this.getVeiculoByPlaca(normalized)
   }
 
-  async markAsVendido(id) {
-    await this.queryBuilder('veiculos').where('id', id).update({ status: 'VENDIDO' })
+  async markAsReservado(placa) {
+    const normalized = String(placa).trim().toUpperCase()
+    await this.queryBuilder('veiculos').where('placa', normalized).update({ status: 'RESERVADO' })
+  }
+
+  async markAsDisponivel(placa) {
+    const normalized = String(placa).trim().toUpperCase()
+    await this.queryBuilder('veiculos').where('placa', normalized).update({ status: 'DISPONIVEL' })
+  }
+
+  async markAsVendido(placa) {
+    const normalized = String(placa).trim().toUpperCase()
+    await this.queryBuilder('veiculos').where('placa', normalized).update({ status: 'VENDIDO' })
   }
 }
 

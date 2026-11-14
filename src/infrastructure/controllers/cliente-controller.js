@@ -1,4 +1,5 @@
 import { CustomError } from '../api/custom-error.js'
+import { stripResponseIds, stripResponseIdsFromCollection } from '../api/response-sanitizer.js'
 import { Cliente } from '../../domain/entities/cliente.js'
 
 class ClienteController {
@@ -9,7 +10,7 @@ class ClienteController {
   async listClientes(req, res) {
     try {
       const clientes = await this.clientesUsecase.listClientes()
-      return res.status(200).json(clientes)
+      return res.status(200).json(stripResponseIdsFromCollection(clientes))
     } catch (error) {
       CustomError.handleControllerError(error, res)
     }
@@ -22,7 +23,7 @@ class ClienteController {
       if (!cliente) {
         return res.status(404).json({ message: 'Cliente não encontrado.' })
       }
-      return res.status(200).json(cliente)
+      return res.status(200).json(stripResponseIds(cliente))
     } catch (error) {
       CustomError.handleControllerError(error, res)
     }
@@ -35,7 +36,7 @@ class ClienteController {
         return res.status(400).json({ message: 'Campos obrigatórios: nome, cpf, email.' })
       }
       const cliente = await this.clientesUsecase.createCliente(new Cliente(nome, cpf, email))
-      return res.status(201).json(cliente)
+      return res.status(201).json(stripResponseIds(cliente))
     } catch (error) {
       CustomError.handleControllerError(error, res)
     }

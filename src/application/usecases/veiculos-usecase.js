@@ -4,6 +4,13 @@ import { ResourceNotFoundError } from '../../domain/errors/resource-not-found-er
 const ANO_MINIMO = 1886
 const ANO_MAXIMO = new Date().getFullYear() + 1
 
+const normalizePlaca = (placa = '') => {
+  if (typeof placa !== 'string') return ''
+  return placa.trim().replace(/[^A-Z0-9]/gi, '').toUpperCase()
+}
+
+const isValidPlaca = (placa) => /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(placa)
+
 class VeiculosUsecase {
   constructor(veiculosRepository) {
     this.veiculosRepository = veiculosRepository
@@ -17,12 +24,23 @@ class VeiculosUsecase {
     return this.veiculosRepository.getVeiculosVendidos()
   }
 
-  async getVeiculoById(id) {
-    const parsed = Number(id)
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      throw new InvalidInputError('ID do veículo inválido.')
+  async listVeiculosReservados() {
+    return this.veiculosRepository.getVeiculosReservados()
+  }
+
+  async getVeiculoByPlaca(placa) {
+    const normalized = normalizePlaca(placa)
+    if (!isValidPlaca(normalized)) {
+      throw new InvalidInputError('Placa do veículo inválida.')
     }
-    return this.veiculosRepository.getVeiculoById(parsed)
+    return this.veiculosRepository.getVeiculoByPlaca(normalized)
+  }
+
+  async getVeiculoByIdentifier(identifier) {
+    if (identifier === undefined || identifier === null || identifier === '') {
+      throw new InvalidInputError('Identificador do veículo inválido.')
+    }
+    return this.getVeiculoByPlaca(identifier)
   }
 
   async createVeiculo(veiculo) {
@@ -30,18 +48,22 @@ class VeiculosUsecase {
     return this.veiculosRepository.createVeiculo(veiculo)
   }
 
-  async updateVeiculo(id, updates) {
-    const parsed = Number(id)
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      throw new InvalidInputError('ID do veículo inválido.')
+  async updateVeiculo(placa, updates) {
+    const normalized = normalizePlaca(placa)
+    if (!isValidPlaca(normalized)) {
+      throw new InvalidInputError('Placa do veículo inválida.')
     }
 
-    const veiculo = await this.veiculosRepository.getVeiculoById(parsed)
+    const veiculo = await this.veiculosRepository.getVeiculoByPlaca(normalized)
     if (!veiculo) {
       throw new ResourceNotFoundError('Veículo não encontrado.')
     }
-    if (veiculo.status === 'VENDIDO') {
-      throw new InvalidInputError('Não é possível editar um veículo já vendido.')
+    if (veiculo.status === 'RESERVADO' || veiculo.status === 'VENDIDO') {
+      throw new InvalidInputError('Não é possível editar um veículo reservado ou vendido.')
+    }
+
+    if (updates && Object.prototype.hasOwnProperty.call(updates, 'placa')) {
+      throw new InvalidInputError('A placa do veículo não pode ser alterada.')
     }
 
     const allowedFields = ['marca', 'modelo', 'ano', 'cor', 'preco']
@@ -78,7 +100,7 @@ class VeiculosUsecase {
       filtered.preco = preco
     }
 
-    return this.veiculosRepository.updateVeiculo(parsed, filtered)
+    return this.veiculosRepository.updateVeiculo(normalized, filtered)
   }
 
   #validateVeiculoFields(veiculo) {
@@ -91,6 +113,11 @@ class VeiculosUsecase {
     if (!veiculo.cor || typeof veiculo.cor !== 'string' || veiculo.cor.trim().length === 0) {
       throw new InvalidInputError('Cor inválida.')
     }
+    const placa = normalizePlaca(veiculo.placa)
+    if (!isValidPlaca(placa)) {
+      throw new InvalidInputError('Placa do veículo inválida.')
+    }
+    veiculo.placa = placa
     const ano = Number(veiculo.ano)
     if (!Number.isInteger(ano) || ano < ANO_MINIMO || ano > ANO_MAXIMO) {
       throw new InvalidInputError(`Ano inválido. Deve estar entre ${ANO_MINIMO} e ${ANO_MAXIMO}.`)

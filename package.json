@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Plataforma de revenda de veículos automotores",
-  "main": "src/infrastructure/api/server.js",
   "engines": {
     "node": "=22.0.0"
   },
   "scripts": {
-    "start": "node src/infrastructure/api/server.js",
+    "start:clientes": "npm --prefix ../soat13-tc-revenda-clientes start",
+    "start:veiculos": "npm --prefix ../soat13-tc-revenda-veiculos start",
+    "start:vendas": "npm --prefix ../soat13-tc-revenda-vendas start",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e",
     "test:live": "node tests/e2e/live-api-test.js",

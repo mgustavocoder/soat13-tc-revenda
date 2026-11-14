@@ -33,12 +33,16 @@ app.post('/api/clientes', async (req, res) => { await clienteController.createCl
 
 // Veículos
 app.get('/api/veiculos/disponiveis', async (req, res) => { await veiculoController.listVeiculosDisponiveis(req, res) })
+app.get('/api/veiculos/reservados', async (req, res) => { await veiculoController.listVeiculosReservados(req, res) })
 app.get('/api/veiculos/vendidos', async (req, res) => { await veiculoController.listVeiculosVendidos(req, res) })
-app.get('/api/veiculos/:id', async (req, res) => { await veiculoController.getVeiculoById(req, res) })
+app.get('/api/veiculos/:placa', async (req, res) => { await veiculoController.getVeiculoById(req, res) })
 app.post('/api/veiculos', async (req, res) => { await veiculoController.createVeiculo(req, res) })
-app.put('/api/veiculos/:id', async (req, res) => { await veiculoController.updateVeiculo(req, res) })
+app.put('/api/veiculos/:placa', async (req, res) => { await veiculoController.updateVeiculo(req, res) })
 
 // Vendas
-app.post('/api/vendas', async (req, res) => { await vendaController.comprarVeiculo(req, res) })
+app.get('/api/vendas', async (req, res) => { await vendaController.listVendas(req, res) })
+app.post('/api/vendas/reservar', async (req, res) => { await vendaController.reservarVeiculo(req, res) })
+app.post('/api/vendas/:codigo/cancelar', async (req, res) => { await vendaController.cancelarVenda(req, res) })
+app.post('/api/vendas/:codigo/confirmar-pagamento', async (req, res) => { await vendaController.confirmarPagamento(req, res) })
 
 app.listen(3000, () => { logger.info('Servidor de revenda rodando na porta 3000') })

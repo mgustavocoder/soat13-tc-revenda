@@ -1,0 +1,527 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: SOAT13 - Revenda
+meta:
+  id: wrk_b01df879ab55403c8f35e01604d62eba
+  created: 1781456894158
+  modified: 1781456894158
+  description: ""
+collection:
+  - name: Fluxo principal
+    meta:
+      id: fld_fluxo_principal
+      created: 1781560875499
+      modified: 1781560875499
+      sortKey: -1781560875000
+      description: "Sequência principal do processo de venda"
+    children:
+      - url: "{{ _.base_url }}/api/clientes"
+        name: 01. Cadastrar cliente
+        method: POST
+        meta:
+          id: req_fluxo_cliente
+          created: 1781560875500
+          modified: 1781560875500
+          isPrivate: false
+          description: "Cria o cliente que vai reservar o veículo"
+          sortKey: -1781560875500
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "nome": "Maria Silva",
+              "cpf": "12345678901",
+              "email": "maria@email.com"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/veiculos"
+        name: 02. Cadastrar veículo
+        method: POST
+        meta:
+          id: req_fluxo_veiculo
+          created: 1781560875501
+          modified: 1781560875501
+          isPrivate: false
+          description: "Registra um veículo disponível para a revenda"
+          sortKey: -1781560875501
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "marca": "Toyota",
+              "modelo": "Corolla",
+              "ano": 2022,
+              "cor": "Branco",
+              "placa": "ABC1D23",
+              "preco": 85000
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/veiculos/disponiveis"
+        name: 03. Listar veículos disponíveis
+        method: GET
+        meta:
+          id: req_fluxo_disponiveis
+          created: 1781560875502
+          modified: 1781560875502
+          isPrivate: false
+          description: "Confere os veículos disponíveis antes da reserva"
+          sortKey: -1781560875502
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/vendas/reservar"
+        name: 04. Reservar veículo
+        method: POST
+        meta:
+          id: req_fluxo_reservar
+          created: 1781560875503
+          modified: 1781560875503
+          isPrivate: false
+          description: "Cria a venda em AGUARDANDO_PAGAMENTO e reserva o veículo"
+          sortKey: -1781560875503
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "veiculoPlaca": "{{ _.veiculo_placa }}",
+              "clienteCpf": "{{ _.cliente_cpf }}"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/vendas"
+        name: 05. Listar vendas
+        method: GET
+        meta:
+          id: req_fluxo_listar_vendas
+          created: 1781560875504
+          modified: 1781560875504
+          isPrivate: false
+          description: "Lista as vendas do sistema para verificar o código gerado"
+          sortKey: -1781560875504
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/vendas/{{ _.codigo_venda }}/confirmar-pagamento"
+        name: 06. Confirmar pagamento
+        method: POST
+        meta:
+          id: req_fluxo_confirmar
+          created: 1781560875505
+          modified: 1781560875505
+          isPrivate: false
+          description: "Finaliza a compra, fecha a venda e marca o veículo como vendido"
+          sortKey: -1781560875505
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/vendas/{{ _.codigo_venda }}/cancelar"
+        name: 07. Cancelar reserva (alternativo)
+        method: POST
+        meta:
+          id: req_fluxo_cancelar
+          created: 1781560875506
+          modified: 1781560875506
+          isPrivate: false
+          description: "Cancela a reserva de uma venda em AGUARDANDO_PAGAMENTO"
+          sortKey: -1781560875506
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+  - name: Health
+    meta:
+      id: fld_f2e644ab0176464aabead76048aca329
+      created: 1781560875482
+      modified: 1793638427874
+      sortKey: -1781560875792
+      description: ""
+    children:
+      - url: "{{ _.base_url }}/api/health"
+        name: Health Check
+        meta:
+          id: req_da076d63b0e341fe918ce0f645b559f5
+          created: 1781560875484
+          modified: 1793638548381
+          isPrivate: false
+          description: ""
+          sortKey: -1781560875484
+        method: GET
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+  - name: Clientes
+    meta:
+      id: fld_d181621472274e68b86d191a2a6ff239
+      created: 1781560875484
+      modified: 1793638424884
+      sortKey: -1781560875692
+      description: ""
+    children:
+      - url: "{{ _.base_url }}/api/clientes"
+        name: Cadastrar cliente
+        meta:
+          id: req_7bce783392c44a5badc96f83bc05c76c
+          created: 1781560875485
+          modified: 1781560875485
+          isPrivate: false
+          description: ""
+          sortKey: -1781560875485
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "nome": "Maria Silva",
+              "cpf": "12345678901",
+              "email": "maria@email.com"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/clientes"
+        name: Listar clientes
+        meta:
+          id: req_d0a8c90648404dc5ab7798fd4c3f63ad
+          created: 1781560875486
+          modified: 1781560875486
+          isPrivate: false
+          description: ""
+          sortKey: -1781560875486
+        method: GET
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/clientes/{{ _.cliente_cpf }}"
+        name: Buscar cliente por CPF
+        meta:
+          id: req_cb3c563364cb43d48b870ee1091b8ec4
+          created: 1781560875486
+          modified: 1793638449552
+          isPrivate: false
+          description: ""
+          sortKey: -1781560875486
+        method: GET
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+  - name: Veículos
+    meta:
+      id: fld_bbd50775679142338f9001fc1b5b97e5
+      created: 1781560875487
+      modified: 1793638317675
+      sortKey: -1781560875487
+      description: ""
+    children:
+      - url: "{{ _.base_url }}/api/veiculos"
+        name: Cadastrar veículo
+        meta:
+          id: req_976f15465646417fa2f9658ae32177fd
+          created: 1781560875488
+          modified: 1781560875488
+          isPrivate: false
+          description: ""
+          sortKey: -1781560875488
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "marca": "Toyota",
+              "modelo": "Corolla",
+              "ano": 2022,
+              "cor": "Branco",
+              "placa": "ABC1D23",
+              "preco": 85000
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/veiculos/{{ _.veiculo_placa }}"
+        name: Buscar veículo por placa
+        meta:
+          id: req_932a6fc6866a47929fab002a4f5630b9
+          created: 1781560875489
+          modified: 1781560875489
+          isPrivate: false
+          description: ""
+          sortKey: -1781560875489
+        method: GET
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/veiculos/{{ _.veiculo_placa }}"
+        name: Editar veículo
+        meta:
+          id: req_f451daeeede34cf1bd307ad8e9ab2b71
+          created: 1781560875488
+          modified: 1781560875488
+          isPrivate: false
+          description: ""
+          sortKey: -1781560875488
+        method: PUT
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "preco": 80000,
+              "cor": "Prata"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/veiculos/disponiveis"
+        name: Listar veículos disponíveis
+        meta:
+          id: req_84cd93fc929f42c3b01b30023946b2e9
+          created: 1781560875490
+          modified: 1781560875490
+          isPrivate: false
+          description: ""
+          sortKey: -1781560875490
+        method: GET
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/veiculos/vendidos"
+        name: Listar veículos vendidos
+        meta:
+          id: req_4d3e14ae86084c30832982765ab5a908
+          created: 1781560875491
+          modified: 1781560875491
+          isPrivate: false
+          description: ""
+          sortKey: -1781560875491
+        method: GET
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+  - name: Vendas
+    meta:
+      id: fld_639e7551c83348959d64dbd91e692cec
+      created: 1781560875492
+      modified: 1793638418343
+      sortKey: -1781560875385.5
+      description: ""
+    children:
+      - url: "{{ _.base_url }}/api/vendas"
+        name: Listar vendas
+        method: GET
+        meta:
+          id: req_vendas_listar
+          created: 1781560875493
+          modified: 1781560875493
+          isPrivate: false
+          description: "Lista todas as vendas do sistema"
+          sortKey: -1781560875493
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/vendas/reservar"
+        name: Reservar veículo
+        method: POST
+        meta:
+          id: req_vendas_reservar
+          created: 1781560875494
+          modified: 1781560875494
+          isPrivate: false
+          description: "Cria uma venda em AGUARDANDO_PAGAMENTO"
+          sortKey: -1781560875494
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "veiculoPlaca": "{{ _.veiculo_placa }}",
+              "clienteCpf": "{{ _.cliente_cpf }}"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/vendas/{{ _.codigo_venda }}/cancelar"
+        name: Cancelar reserva
+        method: POST
+        meta:
+          id: req_vendas_cancelar
+          created: 1781560875495
+          modified: 1781560875495
+          isPrivate: false
+          description: "Cancela uma venda em AGUARDANDO_PAGAMENTO"
+          sortKey: -1781560875495
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+      - url: "{{ _.base_url }}/api/vendas/{{ _.codigo_venda }}/confirmar-pagamento"
+        name: Confirmar pagamento
+        method: POST
+        meta:
+          id: req_vendas_confirmar
+          created: 1781560875496
+          modified: 1781560875496
+          isPrivate: false
+          description: "Confirma o pagamento e encerra a venda"
+          sortKey: -1781560875496
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_104102e980051ef3131e41d0e69a35629d3daab7
+    created: 1781456894160
+    modified: 1781456894160
+environments:
+  name: Base Environment
+  meta:
+    id: env_104102e980051ef3131e41d0e69a35629d3daab7
+    created: 1781456894159
+    modified: 1793638388102
+    isPrivate: false
+  data:
+    base_url: http://localhost:3000
+    cliente_cpf: "12345678901"
+    veiculo_placa: ABC1D23
+    codigo_venda: VEN-7F3G2A1M

@@ -136,6 +136,7 @@ paths:
               modelo: Corolla
               ano: 2022
               cor: Branco
+              placa: ABC1D23
               preco: 85000
       responses:
         '201':
@@ -165,20 +166,42 @@ paths:
                 items:
                   $ref: '#/components/schemas/Veiculo'
               example:
-                - id: 2
+                - placa: DEF2E34
                   marca: Honda
                   modelo: Civic
                   ano: 2021
                   cor: Prata
                   preco: 75000
                   status: DISPONIVEL
-                - id: 1
+                - placa: ABC1D23
                   marca: Toyota
                   modelo: Corolla
                   ano: 2022
                   cor: Branco
                   preco: 85000
                   status: DISPONIVEL
+
+  /api/veiculos/reservados:
+    get:
+      tags: [Veículos]
+      summary: Lista veículos reservados, ordenados por preço crescente
+      responses:
+        '200':
+          description: Lista de veículos reservados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Veiculo'
+              example:
+                - placa: ABC1D23
+                  marca: Toyota
+                  modelo: Corolla
+                  ano: 2022
+                  cor: Branco
+                  preco: 85000
+                  status: RESERVADO
 
   /api/veiculos/vendidos:
     get:
@@ -194,17 +217,17 @@ paths:
                 items:
                   $ref: '#/components/schemas/Veiculo'
 
-  /api/veiculos/{id}:
+  /api/veiculos/{placa}:
     get:
       tags: [Veículos]
-      summary: Busca veículo por ID
+      summary: Busca veículo pela placa
       parameters:
-        - name: id
+        - name: placa
           in: path
           required: true
           schema:
-            type: integer
-          example: 1
+            type: string
+          example: ABC1D23
       responses:
         '200':
           description: Veículo encontrado
@@ -213,7 +236,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Veiculo'
         '400':
-          description: ID inválido
+          description: Placa inválida
           content:
             application/json:
               schema:
@@ -232,12 +255,12 @@ paths:
         Atualiza parcialmente os dados do veículo. Apenas veículos com status
         `DISPONIVEL` podem ser editados. Informe pelo menos um campo.
       parameters:
-        - name: id
+        - name: placa
           in: path
           required: true
           schema:
-            type: integer
-          example: 1
+            type: string
+          example: ABC1D23
       requestBody:
         required: true
         content:
@@ -268,12 +291,29 @@ paths:
                 $ref: '#/components/schemas/Erro'
 
   /api/vendas:
+    get:
+      tags: [Vendas]
+      summary: Lista todas as vendas cadastradas
+      responses:
+        '200':
+          description: Lista de vendas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VendaResponse'
+
+  /api/vendas/reservar:
     post:
       tags: [Vendas]
-      summary: Realiza a compra de um veículo
+      summary: Reserva um veículo para o cliente
       description: |
+        A reserva deve ocorrer antes da confirmação de pagamento.
         O cliente identificado pelo CPF deve estar previamente cadastrado.
         O veículo deve estar com status `DISPONIVEL`.
+        Quando a reserva é criada, a venda fica em `AGUARDANDO_PAGAMENTO` e o veículo passa para `RESERVADO`.
+        Um veículo não pode ter mais de uma reserva ativa ao mesmo tempo.
       requestBody:
         required: true
         content:
@@ -281,11 +321,11 @@ paths:
             schema:
               $ref: '#/components/schemas/VendaInput'
             example:
-              veiculoId: 1
+              veiculoPlaca: ABC1D23
               clienteCpf: "12345678901"
       responses:
         '201':
-          description: Compra realizada com sucesso
+          description: Veículo reservado com sucesso
           content:
             application/json:
               schema:
@@ -303,11 +343,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/Erro'
         '422':
-          description: Veículo não disponível para venda (já vendido)
+          description: Veículo não disponível para venda
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Erro'
+
+  /api/vendas/{codigo}/cancelar:
+    post:
+      tags: [Vendas]
+      summary: Cancela uma reserva existente
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^VEN-[A-Z0-9]+$'
+          example: VEN-7F3G2A1M
+      responses:
+        '200':
+          description: Reserva cancelada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaResponse'
+
+  /api/vendas/{codigo}/confirmar-pagamento:
+    post:
+      tags: [Vendas]
+      summary: Confirma o pagamento da reserva e finaliza a compra
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^VEN-[A-Z0-9]+$'
+          example: VEN-7F3G2A1M
+      responses:
+        '200':
+          description: Pagamento confirmado e venda finalizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaResponse'
 
 components:
   schemas:
@@ -331,17 +411,13 @@ components:
           example: maria@email.com
 
     Cliente:
+      description: Resposta pública do cliente. Não expõe o id interno do banco.
       allOf:
-        - type: object
-          properties:
-            id:
-              type: integer
-              example: 1
         - $ref: '#/components/schemas/ClienteInput'
 
     VeiculoInput:
       type: object
-      required: [marca, modelo, ano, cor, preco]
+      required: [marca, modelo, ano, cor, placa, preco]
       properties:
         marca:
           type: string
@@ -356,6 +432,9 @@ components:
         cor:
           type: string
           example: Branco
+        placa:
+          type: string
+          example: ABC1D23
         preco:
           type: number
           format: float
@@ -379,6 +458,9 @@ components:
         cor:
           type: string
           example: Prata
+        placa:
+          type: string
+          example: ABC1D23
         preco:
           type: number
           format: float
@@ -386,44 +468,58 @@ components:
           example: 80000
 
     Veiculo:
-      allOf:
-        - type: object
-          properties:
-            id:
-              type: integer
-              example: 1
-        - $ref: '#/components/schemas/VeiculoInput'
-        - type: object
-          properties:
-            status:
-              type: string
-              enum: [DISPONIVEL, VENDIDO]
-              example: DISPONIVEL
+      description: Resposta pública do veículo. Não expõe o id interno do banco.
+      type: object
+      required: [marca, modelo, ano, cor, placa, preco, status]
+      properties:
+        marca:
+          type: string
+          example: Toyota
+        modelo:
+          type: string
+          example: Corolla
+        ano:
+          type: integer
+          example: 2022
+        cor:
+          type: string
+          example: Branco
+        placa:
+          type: string
+          example: ABC1D23
+        preco:
+          type: number
+          format: float
+          example: 85000
+        status:
+          type: string
+          enum: [DISPONIVEL, RESERVADO, VENDIDO]
+          example: DISPONIVEL
 
     VendaInput:
       type: object
-      required: [veiculoId, clienteCpf]
+      required: [veiculoPlaca, clienteCpf]
       properties:
-        veiculoId:
-          type: integer
-          example: 1
+        veiculoPlaca:
+          type: string
+          example: ABC1D23
         clienteCpf:
           type: string
           pattern: '^\d{11}$'
           example: "12345678901"
 
     VendaResponse:
+      description: Resposta pública da venda. Não expõe os ids internos do banco.
       type: object
       properties:
-        id:
-          type: integer
-          example: 1
-        veiculoId:
-          type: integer
-          example: 1
-        clienteId:
-          type: integer
-          example: 1
+        codigo:
+          type: string
+          pattern: '^VEN-[A-Z0-9]+$'
+          example: VEN-7F3G2A1M
+          description: Código público da venda
+        veiculoPlaca:
+          type: string
+          example: ABC1D23
         clienteCpf:
           type: string
           example: "12345678901"
@@ -431,6 +527,10 @@ components:
           type: number
           format: float
           example: 85000
+        status:
+          type: string
+          enum: [AGUARDANDO_PAGAMENTO, CANCELADA, PAGAMENTO_CONFIRMADO]
+          example: AGUARDANDO_PAGAMENTO
         dataVenda:
           type: string
           format: date-time

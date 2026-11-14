@@ -1,4 +1,5 @@
 import { CustomError } from '../api/custom-error.js'
+import { stripResponseIds, stripResponseIdsFromCollection } from '../api/response-sanitizer.js'
 import { Veiculo } from '../../domain/entities/veiculo.js'
 
 class VeiculoController {
@@ -9,7 +10,7 @@ class VeiculoController {
   async listVeiculosDisponiveis(req, res) {
     try {
       const veiculos = await this.veiculosUsecase.listVeiculosDisponiveis()
-      return res.status(200).json(veiculos)
+      return res.status(200).json(stripResponseIdsFromCollection(veiculos))
     } catch (error) {
       CustomError.handleControllerError(error, res)
     }
@@ -18,7 +19,16 @@ class VeiculoController {
   async listVeiculosVendidos(req, res) {
     try {
       const veiculos = await this.veiculosUsecase.listVeiculosVendidos()
-      return res.status(200).json(veiculos)
+      return res.status(200).json(stripResponseIdsFromCollection(veiculos))
+    } catch (error) {
+      CustomError.handleControllerError(error, res)
+    }
+  }
+
+  async listVeiculosReservados(req, res) {
+    try {
+      const veiculos = await this.veiculosUsecase.listVeiculosReservados()
+      return res.status(200).json(stripResponseIdsFromCollection(veiculos))
     } catch (error) {
       CustomError.handleControllerError(error, res)
     }
@@ -26,12 +36,12 @@ class VeiculoController {
 
   async getVeiculoById(req, res) {
     try {
-      const { id } = req.params
-      const veiculo = await this.veiculosUsecase.getVeiculoById(id)
+      const { placa } = req.params
+      const veiculo = await this.veiculosUsecase.getVeiculoByIdentifier(placa)
       if (!veiculo) {
         return res.status(404).json({ message: 'Veículo não encontrado.' })
       }
-      return res.status(200).json(veiculo)
+      return res.status(200).json(stripResponseIds(veiculo))
     } catch (error) {
       CustomError.handleControllerError(error, res)
     }
@@ -39,12 +49,12 @@ class VeiculoController {
 
   async createVeiculo(req, res) {
     try {
-      const { marca, modelo, ano, cor, preco } = req.body
-      if (!marca || !modelo || !ano || !cor || preco === undefined) {
-        return res.status(400).json({ message: 'Campos obrigatórios: marca, modelo, ano, cor, preco.' })
+      const { marca, modelo, ano, cor, placa, preco } = req.body
+      if (!marca || !modelo || !ano || !cor || !placa || preco === undefined) {
+        return res.status(400).json({ message: 'Campos obrigatórios: marca, modelo, ano, cor, placa, preco.' })
       }
-      const veiculo = await this.veiculosUsecase.createVeiculo(new Veiculo(marca, modelo, ano, cor, preco))
-      return res.status(201).json(veiculo)
+      const veiculo = await this.veiculosUsecase.createVeiculo(new Veiculo(marca, modelo, ano, cor, placa, preco))
+      return res.status(201).json(stripResponseIds(veiculo))
     } catch (error) {
       CustomError.handleControllerError(error, res)
     }
@@ -52,9 +62,9 @@ class VeiculoController {
 
   async updateVeiculo(req, res) {
     try {
-      const { id } = req.params
-      const veiculo = await this.veiculosUsecase.updateVeiculo(id, req.body)
-      return res.status(200).json(veiculo)
+      const { placa } = req.params
+      const veiculo = await this.veiculosUsecase.updateVeiculo(placa, req.body)
+      return res.status(200).json(stripResponseIds(veiculo))
     } catch (error) {
       CustomError.handleControllerError(error, res)
     }

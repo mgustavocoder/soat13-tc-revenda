@@ -51,6 +51,7 @@ class MockClientesRepository {
 class MockVeiculosRepository {
   constructor() {
     this.veiculos = new Map()
+    this.placas = new Map()
     this.nextId = 1
   }
 
@@ -66,26 +67,60 @@ class MockVeiculosRepository {
       .sort((a, b) => a.preco - b.preco)
   }
 
+  async getVeiculosReservados() {
+    return Array.from(this.veiculos.values())
+      .filter(v => v.status === 'RESERVADO')
+      .sort((a, b) => a.preco - b.preco)
+  }
+
   async getVeiculoById(id) {
     return this.veiculos.get(id)
   }
 
+  async getVeiculoByPlaca(placa) {
+    return this.placas.get(String(placa).toUpperCase())
+  }
+
   async createVeiculo(veiculo) {
-    const record = { id: this.nextId++, ...veiculo, status: 'DISPONIVEL' }
+    const record = { id: this.nextId++, ...veiculo, status: 'DISPONIVEL', placa: String(veiculo.placa).toUpperCase() }
     this.veiculos.set(record.id, record)
+    this.placas.set(record.placa, record)
     return record
   }
 
-  async updateVeiculo(id, updates) {
-    const veiculo = this.veiculos.get(id)
+  async updateVeiculo(identifier, updates) {
+    const key = String(identifier).trim()
+    const veiculo = /^\d+$/.test(key) ? this.veiculos.get(Number(key)) : this.placas.get(key.toUpperCase())
     const updated = { ...veiculo, ...updates }
-    this.veiculos.set(id, updated)
+    if (updated.placa) this.placas.set(updated.placa.toUpperCase(), updated)
+    if (veiculo) {
+      this.veiculos.set(veiculo.id, updated)
+    }
     return updated
   }
 
-  async markAsVendido(id) {
-    const veiculo = this.veiculos.get(id)
-    this.veiculos.set(id, { ...veiculo, status: 'VENDIDO' })
+  async markAsReservado(identifier) {
+    const key = String(identifier).trim()
+    const veiculo = /^\d+$/.test(key) ? this.veiculos.get(Number(key)) : this.placas.get(key.toUpperCase())
+    const updated = { ...veiculo, status: 'RESERVADO' }
+    this.veiculos.set(updated.id, updated)
+    if (updated.placa) this.placas.set(updated.placa.toUpperCase(), updated)
+  }
+
+  async markAsDisponivel(identifier) {
+    const key = String(identifier).trim()
+    const veiculo = /^\d+$/.test(key) ? this.veiculos.get(Number(key)) : this.placas.get(key.toUpperCase())
+    const updated = { ...veiculo, status: 'DISPONIVEL' }
+    this.veiculos.set(updated.id, updated)
+    if (updated.placa) this.placas.set(updated.placa.toUpperCase(), updated)
+  }
+
+  async markAsVendido(identifier) {
+    const key = String(identifier).trim()
+    const veiculo = /^\d+$/.test(key) ? this.veiculos.get(Number(key)) : this.placas.get(key.toUpperCase())
+    const updated = { ...veiculo, status: 'VENDIDO' }
+    this.veiculos.set(updated.id, updated)
+    if (updated.placa) this.placas.set(updated.placa.toUpperCase(), updated)
   }
 }
 
@@ -98,14 +133,48 @@ class MockVendasRepository {
   async createVenda(venda) {
     const record = {
       id: this.nextId++,
+      codigo: venda.codigo ?? `VEN-${String(this.nextId).padStart(6, '0')}`,
       veiculoId: venda.veiculoId,
+      veiculoPlaca: venda.veiculoPlaca,
       clienteId: venda.clienteId,
       clienteCpf: venda.clienteCpf,
       preco: venda.preco,
-      dataVenda: new Date().toISOString()
+      dataVenda: new Date().toISOString(),
+      status: venda.status ?? 'AGUARDANDO_PAGAMENTO'
     }
     this.vendas.push(record)
     return record
+  }
+
+  async getVendaById(id) {
+    return this.vendas.find(venda => venda.id === Number(id))
+  }
+
+  async getVendas() {
+    return this.vendas.slice().sort((a, b) => a.id - b.id)
+  }
+
+  async getVendaByCodigo(codigo) {
+    return this.vendas.find(venda => venda.codigo === String(codigo))
+  }
+
+  async getReservaAtivaByVeiculoPlaca(placa) {
+    return this.vendas.find(venda =>
+      venda.veiculoPlaca === String(placa).trim().toUpperCase() && venda.status === 'AGUARDANDO_PAGAMENTO')
+  }
+
+  async updateStatus(id, status) {
+    const venda = this.vendas.find(item => item.id === Number(id))
+    if (!venda) return undefined
+    venda.status = status
+    return venda
+  }
+
+  async updateStatusByCodigo(codigo, status) {
+    const venda = this.vendas.find(item => item.codigo === String(codigo))
+    if (!venda) return undefined
+    venda.status = status
+    return venda
   }
 }
 
@@ -133,12 +202,16 @@ function createRevendaApp(clientesRepo, veiculosRepo, vendasRepo) {
   app.post('/api/clientes', (req, res) => clienteController.createCliente(req, res))
 
   app.get('/api/veiculos/disponiveis', (req, res) => veiculoController.listVeiculosDisponiveis(req, res))
+  app.get('/api/veiculos/reservados', (req, res) => veiculoController.listVeiculosReservados(req, res))
   app.get('/api/veiculos/vendidos', (req, res) => veiculoController.listVeiculosVendidos(req, res))
-  app.get('/api/veiculos/:id', (req, res) => veiculoController.getVeiculoById(req, res))
+  app.get('/api/veiculos/:placa', (req, res) => veiculoController.getVeiculoById(req, res))
   app.post('/api/veiculos', (req, res) => veiculoController.createVeiculo(req, res))
-  app.put('/api/veiculos/:id', (req, res) => veiculoController.updateVeiculo(req, res))
+  app.put('/api/veiculos/:placa', (req, res) => veiculoController.updateVeiculo(req, res))
 
-  app.post('/api/vendas', (req, res) => vendaController.comprarVeiculo(req, res))
+  app.get('/api/vendas', (req, res) => vendaController.listVendas(req, res))
+  app.post('/api/vendas/reservar', (req, res) => vendaController.reservarVeiculo(req, res))
+  app.post('/api/vendas/:codigo/cancelar', (req, res) => vendaController.cancelarVenda(req, res))
+  app.post('/api/vendas/:codigo/confirmar-pagamento', (req, res) => vendaController.confirmarPagamento(req, res))
 
   return app
 }
@@ -148,7 +221,7 @@ function createRevendaApp(clientesRepo, veiculosRepo, vendasRepo) {
 describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
   let app
   let clientesRepo, veiculosRepo, vendasRepo
-  let veiculoCorollaId, veiculoCivicId, veiculoHRVId
+  let veiculoCorollaPlaca, veiculoCivicPlaca, veiculoHRVPlaca
 
   beforeAll(() => {
     clientesRepo = new MockClientesRepository()
@@ -174,7 +247,7 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
         .expect(201)
 
       expect(res.body).toMatchObject({ nome: 'Maria Silva', cpf: '12345678901', email: 'maria@email.com' })
-      expect(res.body.id).toBeDefined()
+      expect(res.body.id).toBeUndefined()
     })
 
     test('deve cadastrar segundo cliente com sucesso', async () => {
@@ -242,40 +315,46 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
 
   // ── REQUISITO 1: Cadastro de veículos ───────────────────────────────────────
   describe('Cadastro de veículos', () => {
-    test('deve cadastrar Toyota Corolla por R$85.000', async () => {
+    test('deve cadastrar Toyota Corolla por R$85.000 com placa e buscar por placa', async () => {
       const res = await request(app)
         .post('/api/veiculos')
-        .send({ marca: 'Toyota', modelo: 'Corolla', ano: 2022, cor: 'Branco', preco: 85000 })
+        .send({ marca: 'Toyota', modelo: 'Corolla', ano: 2022, cor: 'Branco', placa: 'ABC1D23', preco: 85000 })
         .expect(201)
 
-      expect(res.body).toMatchObject({ marca: 'Toyota', modelo: 'Corolla', ano: 2022, cor: 'Branco', preco: 85000, status: 'DISPONIVEL' })
-      expect(res.body.id).toBeDefined()
-      veiculoCorollaId = res.body.id
+      expect(res.body).toMatchObject({ marca: 'Toyota', modelo: 'Corolla', ano: 2022, cor: 'Branco', placa: 'ABC1D23', preco: 85000, status: 'DISPONIVEL' })
+      expect(res.body.id).toBeUndefined()
+      veiculoCorollaPlaca = 'ABC1D23'
+
+      const busca = await request(app)
+        .get('/api/veiculos/ABC1D23')
+        .expect(200)
+
+      expect(busca.body.placa).toBe('ABC1D23')
     })
 
     test('deve cadastrar Honda Civic por R$75.000', async () => {
       const res = await request(app)
         .post('/api/veiculos')
-        .send({ marca: 'Honda', modelo: 'Civic', ano: 2021, cor: 'Prata', preco: 75000 })
+        .send({ marca: 'Honda', modelo: 'Civic', ano: 2021, cor: 'Prata', placa: 'DEF2E34', preco: 75000 })
         .expect(201)
 
       expect(res.body.status).toBe('DISPONIVEL')
-      veiculoCivicId = res.body.id
+      veiculoCivicPlaca = 'DEF2E34'
     })
 
     test('deve cadastrar Honda HR-V por R$95.000', async () => {
       const res = await request(app)
         .post('/api/veiculos')
-        .send({ marca: 'Honda', modelo: 'HR-V', ano: 2023, cor: 'Preto', preco: 95000 })
+        .send({ marca: 'Honda', modelo: 'HR-V', ano: 2023, cor: 'Preto', placa: 'GHI3F45', preco: 95000 })
         .expect(201)
 
-      veiculoHRVId = res.body.id
+      veiculoHRVPlaca = 'GHI3F45'
     })
 
     test('deve rejeitar veículo sem marca (400)', async () => {
       const res = await request(app)
         .post('/api/veiculos')
-        .send({ modelo: 'Corolla', ano: 2022, cor: 'Branco', preco: 85000 })
+        .send({ modelo: 'Corolla', ano: 2022, cor: 'Branco', placa: 'JKL4G56', preco: 85000 })
         .expect(400)
 
       expect(res.body.message).toBeDefined()
@@ -284,7 +363,7 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
     test('deve rejeitar veículo com preço negativo (400)', async () => {
       const res = await request(app)
         .post('/api/veiculos')
-        .send({ marca: 'Toyota', modelo: 'Corolla', ano: 2022, cor: 'Branco', preco: -1000 })
+        .send({ marca: 'Toyota', modelo: 'Corolla', ano: 2022, cor: 'Branco', placa: 'LMN5H67', preco: -1000 })
         .expect(400)
 
       expect(res.body.message).toMatch(/preço/i)
@@ -293,15 +372,15 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
     test('deve rejeitar veículo com ano inválido (400)', async () => {
       const res = await request(app)
         .post('/api/veiculos')
-        .send({ marca: 'Toyota', modelo: 'Corolla', ano: 1800, cor: 'Branco', preco: 85000 })
+        .send({ marca: 'Toyota', modelo: 'Corolla', ano: 1800, cor: 'Branco', placa: 'OPQ6J78', preco: 85000 })
         .expect(400)
 
       expect(res.body.message).toMatch(/ano/i)
     })
 
-    test('deve buscar veículo por ID', async () => {
+    test('deve buscar veículo pela placa', async () => {
       const res = await request(app)
-        .get(`/api/veiculos/${veiculoCorollaId}`)
+        .get(`/api/veiculos/${veiculoCorollaPlaca}`)
         .expect(200)
 
       expect(res.body.modelo).toBe('Corolla')
@@ -328,6 +407,23 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
       }
     })
 
+    test('deve listar veículos RESERVADOS ordenados do mais barato ao mais caro', async () => {
+      const veiculo = await veiculosRepo.getVeiculoByPlaca('ABC1D23')
+      if (veiculo) {
+        await veiculosRepo.markAsReservado('ABC1D23')
+      }
+
+      const res = await request(app).get('/api/veiculos/reservados').expect(200)
+
+      expect(Array.isArray(res.body)).toBe(true)
+      expect(res.body.some(v => v.placa === 'ABC1D23')).toBe(true)
+      for (const v of res.body) {
+        expect(v.status).toBe('RESERVADO')
+      }
+
+      await veiculosRepo.markAsDisponivel('ABC1D23')
+    })
+
     test('deve garantir que a ordenação por preço está correta', async () => {
       const res = await request(app).get('/api/veiculos/disponiveis').expect(200)
       const precos = res.body.map(v => v.preco)
@@ -340,7 +436,7 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
   describe('Edição de dados do veículo', () => {
     test('deve atualizar o preço do Corolla para R$70.000', async () => {
       const res = await request(app)
-        .put(`/api/veiculos/${veiculoCorollaId}`)
+        .put(`/api/veiculos/${veiculoCorollaPlaca}`)
         .send({ preco: 70000 })
         .expect(200)
 
@@ -350,7 +446,7 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
 
     test('deve atualizar cor e modelo simultaneamente', async () => {
       const res = await request(app)
-        .put(`/api/veiculos/${veiculoCivicId}`)
+        .put(`/api/veiculos/${veiculoCivicPlaca}`)
         .send({ cor: 'Azul', modelo: 'Civic Type R' })
         .expect(200)
 
@@ -358,9 +454,18 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
       expect(res.body.modelo).toBe('Civic Type R')
     })
 
+    test('deve rejeitar tentativa de alterar a placa do veículo (400)', async () => {
+      const res = await request(app)
+        .put(`/api/veiculos/${veiculoCorollaPlaca}`)
+        .send({ placa: 'XYZ9W88', preco: 65000 })
+        .expect(400)
+
+      expect(res.body.message).toMatch(/placa/i)
+    })
+
     test('deve rejeitar atualização sem campos válidos (400)', async () => {
       const res = await request(app)
-        .put(`/api/veiculos/${veiculoCorollaId}`)
+        .put(`/api/veiculos/${veiculoCorollaPlaca}`)
         .send({ campoInexistente: 'valor' })
         .expect(400)
 
@@ -369,7 +474,7 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
 
     test('deve rejeitar atualização de veículo inexistente (404)', async () => {
       await request(app)
-        .put('/api/veiculos/99999')
+        .put('/api/veiculos/XYZ9Z99')
         .send({ preco: 50000 })
         .expect(404)
     })
@@ -384,64 +489,106 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
     })
   })
 
-  // ── REQUISITO 3: Compra de veículo (cliente deve estar cadastrado) ──────────
-  describe('Compra de veículo', () => {
-    test('deve rejeitar compra de cliente não cadastrado (404)', async () => {
+  // ── REQUISITO 3: Reserva e confirmação de pagamento ───────────────────────
+  describe('Reserva e confirmação de pagamento', () => {
+    test('deve rejeitar reserva de cliente não cadastrado (404)', async () => {
       const res = await request(app)
-        .post('/api/vendas')
-        .send({ veiculoId: veiculoCorollaId, clienteCpf: '00000000000' })
+        .post('/api/vendas/reservar')
+        .send({ veiculoPlaca: veiculoCorollaPlaca, clienteCpf: '00000000000' })
         .expect(404)
 
       expect(res.body.message).toMatch(/cliente/i)
     })
 
-    test('deve rejeitar compra com CPF inválido (400)', async () => {
+    test('deve rejeitar reserva com CPF inválido (400)', async () => {
       const res = await request(app)
-        .post('/api/vendas')
-        .send({ veiculoId: veiculoCorollaId, clienteCpf: '123' })
+        .post('/api/vendas/reservar')
+        .send({ veiculoPlaca: veiculoCorollaPlaca, clienteCpf: '123' })
         .expect(400)
 
       expect(res.body.message).toMatch(/cpf/i)
     })
 
-    test('deve rejeitar compra de veículo inexistente (404)', async () => {
+    test('deve rejeitar reserva de veículo inexistente (404)', async () => {
       const res = await request(app)
-        .post('/api/vendas')
-        .send({ veiculoId: 99999, clienteCpf: '12345678901' })
+        .post('/api/vendas/reservar')
+        .send({ veiculoPlaca: 'ZZZ9Z99', clienteCpf: '12345678901' })
         .expect(404)
 
       expect(res.body.message).toMatch(/veículo/i)
     })
 
-    test('deve rejeitar compra sem campos obrigatórios (400)', async () => {
+    test('deve rejeitar reserva sem campos obrigatórios (400)', async () => {
       const res = await request(app)
-        .post('/api/vendas')
-        .send({ veiculoId: veiculoCorollaId })
+        .post('/api/vendas/reservar')
+        .send({ veiculoPlaca: veiculoCorollaPlaca })
         .expect(400)
 
       expect(res.body.message).toBeDefined()
     })
 
-    test('Maria deve comprar o Corolla com sucesso', async () => {
+    test('Maria deve reservar o Corolla com sucesso', async () => {
       const res = await request(app)
-        .post('/api/vendas')
-        .send({ veiculoId: veiculoCorollaId, clienteCpf: '12345678901' })
+        .post('/api/vendas/reservar')
+        .send({ veiculoPlaca: veiculoCivicPlaca, clienteCpf: '12345678901' })
         .expect(201)
 
       expect(res.body).toMatchObject({
-        veiculoId: veiculoCorollaId,
+        veiculoPlaca: veiculoCivicPlaca,
         clienteCpf: '12345678901',
-        preco: 70000
+        preco: 75000,
+        status: 'AGUARDANDO_PAGAMENTO'
       })
-      expect(res.body.veiculo.status).toBe('VENDIDO')
+      expect(res.body.codigo).toMatch(/^VEN-/i)
+      expect(res.body.veiculo.status).toBe('RESERVADO')
       expect(res.body.cliente.nome).toBe('Maria Silva')
-      expect(res.body.id).toBeDefined()
+
+      const cancelada = await request(app)
+        .post(`/api/vendas/${res.body.codigo}/cancelar`)
+        .expect(200)
+
+      expect(cancelada.body.status).toBe('CANCELADA')
     })
 
-    test('deve rejeitar segunda compra do mesmo veículo já vendido (422)', async () => {
+    test('deve impedir que um veículo seja reservado mais de uma vez enquanto houver reserva ativa', async () => {
+      const primeiraReserva = await request(app)
+        .post('/api/vendas/reservar')
+        .send({ veiculoPlaca: veiculoCivicPlaca, clienteCpf: '12345678901' })
+        .expect(201)
+
       const res = await request(app)
-        .post('/api/vendas')
-        .send({ veiculoId: veiculoCorollaId, clienteCpf: '98765432100' })
+        .post('/api/vendas/reservar')
+        .send({ veiculoPlaca: veiculoCivicPlaca, clienteCpf: '98765432100' })
+        .expect(422)
+
+      expect(res.body.message).toMatch(/já possui uma reserva ativa/i)
+      expect(primeiraReserva.body.status).toBe('AGUARDANDO_PAGAMENTO')
+
+      await request(app)
+        .post(`/api/vendas/${primeiraReserva.body.codigo}/cancelar`)
+        .expect(200)
+    })
+
+    test('deve confirmar pagamento da reserva e finalizar a compra', async () => {
+      const reservada = await request(app)
+        .post('/api/vendas/reservar')
+        .send({ veiculoPlaca: veiculoCorollaPlaca, clienteCpf: '12345678901' })
+        .expect(201)
+
+      const res = await request(app)
+        .post(`/api/vendas/${reservada.body.codigo}/confirmar-pagamento`)
+        .expect(200)
+
+      expect(res.body.codigo).toBe(reservada.body.codigo)
+      expect(res.body.status).toBe('PAGAMENTO_CONFIRMADO')
+      expect(res.body.veiculo.status).toBe('VENDIDO')
+      expect(res.body.clienteCpf).toBe('12345678901')
+    })
+
+    test('deve rejeitar segunda reserva do mesmo veículo já vendido (422)', async () => {
+      const res = await request(app)
+        .post('/api/vendas/reservar')
+        .send({ veiculoPlaca: veiculoCorollaPlaca, clienteCpf: '98765432100' })
         .expect(422)
 
       expect(res.body.message).toMatch(/disponível/i)
@@ -449,7 +596,7 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
 
     test('deve rejeitar edição de veículo já vendido (400)', async () => {
       const res = await request(app)
-        .put(`/api/veiculos/${veiculoCorollaId}`)
+        .put(`/api/veiculos/${veiculoCorollaPlaca}`)
         .send({ preco: 60000 })
         .expect(400)
 
@@ -490,11 +637,15 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
       expect(res.body[0].preco).toBe(70000)
     })
 
-    test('João compra o HR-V', async () => {
-      await request(app)
-        .post('/api/vendas')
-        .send({ veiculoId: veiculoHRVId, clienteCpf: '98765432100' })
+    test('João reserva e confirma o HR-V', async () => {
+      const reservada = await request(app)
+        .post('/api/vendas/reservar')
+        .send({ veiculoPlaca: veiculoHRVPlaca, clienteCpf: '98765432100' })
         .expect(201)
+
+      await request(app)
+        .post(`/api/vendas/${reservada.body.codigo}/confirmar-pagamento`)
+        .expect(200)
     })
 
     test('deve listar 2 veículos vendidos, ordenados por preço', async () => {
@@ -520,6 +671,18 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
     })
   })
 
+  // ── Listagem de vendas ───────────────────────────────────────────────────────
+  describe('Listagem de vendas', () => {
+    test('deve listar todas as vendas com código público e status', async () => {
+      const res = await request(app).get('/api/vendas').expect(200)
+      expect(Array.isArray(res.body)).toBe(true)
+      expect(res.body.length).toBeGreaterThanOrEqual(2)
+      expect(res.body[0]).toHaveProperty('codigo')
+      expect(res.body[0].codigo).toMatch(/^VEN-/i)
+      expect(res.body[0]).toHaveProperty('status')
+    })
+  })
+
   // ── Resumo do estado final ───────────────────────────────────────────────────
   describe('Estado final do sistema', () => {
     test('deve haver 2 clientes cadastrados', async () => {
@@ -536,4 +699,5 @@ describe('E2E – Fluxo Completo da Plataforma de Revenda', () => {
       expect(vendidos.body.length).toBe(2)
     })
   })
+
 })
